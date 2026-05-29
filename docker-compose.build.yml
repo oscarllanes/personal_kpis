@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: oscar_admin
+      POSTGRES_PASSWORD: MisAmores79
+      POSTGRES_DB: core_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oscar_admin -d core_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  builder:
+    build: .
+    image: personal-kpi-builder:latest
+    volumes:
+      - .:/app
+      - target_cache:/app/target
+    environment:
+      DATABASE_URL: postgres://oscar_admin:MisAmores79@db:5432/core_db
+      SQLX_OFFLINE: "true"
+      # Forzamos la compilación para arquitectura Linux ARM64
+      CARGO_BUILD_TARGET: "aarch64-unknown-linux-gnu"
+      CARGO_TARGET_DIR: /app/target
+    depends_on:
+      db:
+        condition: service_healthy
+    # El binario se generará en /app/target/aarch64-unknown-linux-gnu/release/personal_kpis
+    command: cargo build --release --target aarch64-unknown-linux-gnu
+
+volumes:
+  target_cache:

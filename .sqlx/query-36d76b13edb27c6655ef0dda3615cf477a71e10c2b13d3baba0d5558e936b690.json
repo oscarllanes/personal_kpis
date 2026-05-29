@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO kpis.kpi_logs (user_id, definition_id, entry_date, value) \n             VALUES ($1, (SELECT id FROM kpis.kpi_definitions WHERE name = 'weight'), $2, $3) \n             ON CONFLICT (user_id, entry_date, definition_id) DO UPDATE SET value = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Date",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "36d76b13edb27c6655ef0dda3615cf477a71e10c2b13d3baba0d5558e936b690"
+}

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Operational Control Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 p-8 font-sans text-slate-800">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-extrabold mb-8 text-slate-900 tracking-tight">Operational Log</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 md:col-span-1">
+                <h2 class="text-xl font-bold mb-4">Daily Record</h2>
+                <form id="logForm" class="space-y-4">
+                    <input type="date" id="date" required class="w-full border p-3 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                    <input type="number" id="weight" step="0.1" placeholder="Weight (kg)" class="w-full border p-3 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400">
+                    
+                    <div class="grid grid-cols-1 gap-3 text-sm mt-4 p-5 border rounded-xl bg-slate-50">
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="over_consumption" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Over Consumption</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="screen_time" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Screen Time</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="alcohol" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Alcohol</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="mindfulness" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Mindfulness</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="exercise" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Exercise</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="active_discernment" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Active Discernment</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="energy_level" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Energy Level</span></label>
+                        <label class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" id="pristine_respect" class="w-4 h-4 accent-slate-900"> <span class="font-medium">Pristine Respect</span></label>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl mt-4 hover:bg-slate-800 transition shadow-md">Save Record</button>
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 md:col-span-2 flex flex-col">
+                <h2 class="text-xl font-bold mb-4">Weight History</h2>
+                <div class="relative flex-grow" style="min-height: 250px;">
+                    <canvas id="weightChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
+            <h2 class="text-xl font-bold mb-4">Execution Log (Last 15 Days)</h2>
+            <table class="w-full text-sm text-left whitespace-nowrap">
+                <thead>
+                    <tr class="text-slate-500 border-b-2 border-slate-200">
+                        <th class="py-3 px-2">Date</th>
+                        <th class="py-3 px-2">Weight</th>
+                        <th class="py-3 px-2 text-center">Over Consumption</th>
+                        <th class="py-3 px-2 text-center">Screen Time</th>
+                        <th class="py-3 px-2 text-center">Alcohol</th>
+                        <th class="py-3 px-2 text-center">Mindfulness</th>
+                        <th class="py-3 px-2 text-center">Exercise</th>
+                        <th class="py-3 px-2 text-center">Active Discernment</th>
+                        <th class="py-3 px-2 text-center">Energy Level</th>
+                        <th class="py-3 px-2 text-center">Pristine Respect</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('logForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const rawWeight = document.getElementById('weight').value;
+            const data = {
+                date: document.getElementById('date').value,
+                weight: rawWeight ? parseFloat(rawWeight) : null,
+                over_consumption: document.getElementById('over_consumption').checked,
+                screen_time: document.getElementById('screen_time').checked,
+                alcohol: document.getElementById('alcohol').checked,
+                mindfulness: document.getElementById('mindfulness').checked,
+                exercise: document.getElementById('exercise').checked,
+                active_discernment: document.getElementById('active_discernment').checked,
+                energy_level: document.getElementById('energy_level').checked,
+                pristine_respect: document.getElementById('pristine_respect').checked
+            };
+            
+            try {
+                await fetch('/api/logs', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+                window.location.reload(); 
+            } catch (error) {
+                console.error("Error saving record:", error);
+            }
+        };
+
+        const formatStatus = (val) => val 
+            ? '<span class="bg-green-100 text-green-700 px-2 py-1 rounded-md text-xs font-extrabold tracking-wide">PASS</span>' 
+            : '<span class="bg-red-100 text-red-700 px-2 py-1 rounded-md text-xs font-extrabold tracking-wide">FAIL</span>';
+
+        async function loadDashboard() {
+            try {
+                const res = await fetch('/api/logs');
+                if (!res.ok) return;
+                
+                let logs = await res.json();
+                
+                const tbody = document.getElementById('history-body');
+                tbody.innerHTML = logs.map(l => `
+                    <tr class="border-b hover:bg-slate-50 transition">
+                        <td class="py-3 px-2 font-bold">${l.date}</td>
+                        <td class="py-3 px-2 font-medium text-slate-700">${l.weight !== null ? l.weight + ' kg' : '-'}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.over_consumption)}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.screen_time)}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.alcohol)}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.mindfulness)}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.exercise)}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.active_discernment)}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.energy_level)}</td>
+                        <td class="py-3 px-2 text-center">${formatStatus(l.pristine_respect)}</td>
+                    </tr>
+                `).join('');
+
+                const chartLogs = [...logs].reverse().filter(l => l.weight !== null); 
+                const ctx = document.getElementById('weightChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartLogs.map(l => l.date),
+                        datasets: [{
+                            label: 'Weight (kg)',
+                            data: chartLogs.map(l => l.weight),
+                            borderColor: '#0f172a',
+                            backgroundColor: 'rgba(15, 23, 42, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: '#0f172a',
+                            pointRadius: 4
+                        }]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error loading dashboard:", error);
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

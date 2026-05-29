@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: oscar_admin
+      POSTGRES_PASSWORD: MisAmores79
+      POSTGRES_DB: core_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    image: personal-kpi-builder:latest
+    restart: always
+    environment:
+      DATABASE_URL: postgres://oscar_admin:MisAmores79@db:5432/core_db
+    depends_on:
+      - db
+    # Aquí ejecutamos el binario directamente, sin 'cargo'
+    command: /usr/local/bin/personal_kpis
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
